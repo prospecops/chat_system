@@ -41,7 +41,8 @@ class ChatWindow:
     def run(self):
         self.get_username()
 
-        self.client = ChatClient(self.username)
+        self.client = ChatClient(self.username, '3.141.17.252')
+        # self.client = ChatClient(self.username, '192.168.2.83')
         self.client.set_message_listener(self.handle_message)
 
         self.chat_log.pack(side=tk.LEFT, fill=tk.BOTH)

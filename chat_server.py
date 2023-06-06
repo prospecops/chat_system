@@ -50,6 +50,13 @@ class ChatServer:
             thread = threading.Thread(target=self.handle_client, args=(client, username))
             thread.start()
 
+# if __name__ == "__main__":
+#     server = ChatServer(host='', port=55556)
+#     server.start()
+
+
 if __name__ == "__main__":
-    server = ChatServer()
+    # server = ChatServer('insert Windows IP address')
+    server = ChatServer('172.31.25.224')
+    # server = ChatServer()
     server.start()
