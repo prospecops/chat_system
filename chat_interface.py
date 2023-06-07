@@ -1,3 +1,4 @@
+import threading
 import tkinter as tk
 import json
 from tkinter import simpledialog, messagebox
@@ -80,23 +81,12 @@ class ChatWindow:
         self.quit_button.pack()
 
     def handle_message(self, message):
-        print(f"Handling message: {message}")
-        try:
-            if message.startswith("{") and message.endswith("}"):
-                message_json = json.loads(message)
-                if message_json.get('type') == 'error':
-                    error_message = message_json.get('message')
-                    print(f"Received error message: {error_message}")
-                    # Schedule a function to run in the Tkinter main loop
-                    self.window.after(0, messagebox.showerror, "Error", error_message)
-                    self.window.after(0, self.quit)
-                else:
-                    self.window.after(0, self.insert_message, message)
-            else:
-                # Schedule a function to run in the Tkinter main loop
-                self.window.after(0, self.insert_message, message)
-        except Exception as e:
-            print(f"Exception in handle_message: {e}")
+        print(f"Handling message in thread: {threading.current_thread().name}")
+
+        def _insert_message():
+            self.chat_window.insert(tk.END, message + "\n")
+
+        self.after(0, _insert_message)
 
     def insert_message(self, message):
         self.chat_log.insert(tk.END, f"{message}\n")
