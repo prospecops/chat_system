@@ -84,9 +84,9 @@ class ChatWindow:
         print(f"Handling message in thread: {threading.current_thread().name}")
 
         def _insert_message():
-            self.chat_window.insert(tk.END, message + "\n")
+            self.chat_log.insert(tk.END, message + "\n")
 
-        self.after(0, _insert_message)
+        self.window.after(0, _insert_message)
 
     def insert_message(self, message):
         self.chat_log.insert(tk.END, f"{message}\n")
