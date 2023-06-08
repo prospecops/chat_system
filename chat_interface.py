@@ -26,17 +26,31 @@ class ChatWindow:
         self.quit_button = tk.Button(self.window, text="Quit", command=self.quit)
         self.quit_button.pack()
 
-    def handle_message(self, message):
+    def handle_message(self, incoming_message):
         print(f"Handling message in thread: {threading.current_thread().name}")
+        print(f"Raw message: {incoming_message}")  # Debugging line
 
         def _insert_message():
-            self.chat_log.insert(tk.END, message + "\n")
+            # Process the message string to exclude the timestamp
+            message = incoming_message.strip()  # Remove leading and trailing whitespaces
+
+            # Check if the message is from the sender
+            if "(Just now)" in message:
+                username, _, message_text = message.partition(": ")  # Assume the part after ": " is the message
+                formatted_message = f"{username}: {message_text}\n"  # username: message
+                formatted_message = formatted_message.replace(" (Just now)", "")  # Remove "(Just now)"
+            else:
+                # Assume it's from the receiver
+                username, _, message_text = message.partition(": ")
+                formatted_message = f"{username}: {message_text}\n"  # username: message
+
+            self.chat_log.insert(tk.END, formatted_message)
 
         self.window.after(0, _insert_message)
 
     def send_message(self, event=None):
         message = self.entry_box.get()
-        self.chat_log.insert(tk.END, f"{self.username}: {message}\n")
+        self.chat_log.insert(tk.END, f"{self.username}: {message}\n")  # Remove " (Just now)" from this line
         self.entry_box.delete(0, tk.END)
         print(f"Sending message: {message}")
         try:

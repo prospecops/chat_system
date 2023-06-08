@@ -30,6 +30,11 @@ class ChatServer:
         )
         self.cursor = self.db.cursor()
         self.cursor.execute("CREATE TABLE IF NOT EXISTS users (username VARCHAR(255), password VARCHAR(255))")
+        self.cursor.execute("CREATE TABLE IF NOT EXISTS chat_messages "
+                            "(message_id INT AUTO_INCREMENT PRIMARY KEY, "
+                            "username VARCHAR(255) NOT NULL, "
+                            "message_text TEXT NOT NULL, "
+                            "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         print("Server initialized.")
 
     def handle_client(self, client, username):
@@ -37,6 +42,7 @@ class ChatServer:
         while True:
             try:
                 message = client.recv(1024).decode('utf-8')
+                print(f"Received message from {username}: {message}")
                 if message == "":
                     print(f"Empty message received from {username}, breaking...")
                     break
@@ -56,6 +62,15 @@ class ChatServer:
     def broadcast_message(self, sender, message):
         print(f"Broadcasting message from {sender}...")
         self.lock.acquire()
+        # Store the message in the database
+        try:
+            sql = "INSERT INTO chat_messages (username, message_text) VALUES (%s, %s)"
+            print(f"Executing SQL: {sql}")
+            self.cursor.execute(sql, (sender, message))
+            self.db.commit()
+        except mysql.connector.Error as err:
+            print(f"Failed to insert message into database: {err}")
+        # Broadcast the message to other clients
         for username, client in self.clients.items():
             if username != sender:
                 client.send(f"{sender}: {message}".encode('utf-8'))
@@ -88,21 +103,23 @@ class ChatServer:
             self.clients[username] = client
             self.lock.release()
 
+            # Fetch recent messages and send them to the client
+            recent_messages = self.fetch_recent_messages()
+            for msg in reversed(recent_messages):  # reverse to send older messages first
+                client.send(f"{msg[0]} ({msg[2]}): {msg[1]}".encode('utf-8'))  # msg[0] is username, msg[1] is message text, msg[2] is timestamp
+
             thread = threading.Thread(target=self.handle_client, args=(client, username))
             thread.start()
 
     def register(self, client, username, password):
         print(f"Registering {username}...")
-        print(f"Password before hashing: {password}")  # Debug print
         password = password.encode('utf-8')
         hashed = bcrypt.hashpw(password, bcrypt.gensalt())
-        print(f"Hashed password: {hashed}")  # Debug print
         try:
             signal.signal(signal.SIGALRM, handle_alarm)
             signal.alarm(5)
             self.cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)",
                                 (username, hashed.decode()))  # decode hashed to convert it to a string
-            print(f"Hashed password after decoding: {hashed.decode()}")  # Debug print
             self.db.commit()
             signal.alarm(0)
             client.send("success".encode('utf-8'))
@@ -112,9 +129,7 @@ class ChatServer:
             self.send_error(client, "Registration timed out")
 
     def login(self, client, username, password):
-        print(f"Logging in {username} with password: {password}")  # Add this print statement
         password_encoded = password.encode('utf-8')
-        print(f"Password before checking: {password}, after encoding: {password_encoded}")  # Debug print
         try:
             signal.signal(signal.SIGALRM, handle_alarm)
             signal.alarm(5)
@@ -122,29 +137,28 @@ class ChatServer:
             result = self.cursor.fetchone()
             signal.alarm(0)
             if result is None:
-                print(f"User {username} does not exist.")
                 self.send_error(client, "User does not exist")
                 return False
             stored_password = result[1].encode('utf-8')  # this is actually the hashed password, which includes the salt
-            print(f"Stored password for {username}: {stored_password}")  # Debug print
             if not bcrypt.checkpw(password_encoded, stored_password):  # use stored_password as the salt
-                print(f"Incorrect password for {username}. Provided password: {password}")  # Add this print statement
                 self.send_error(client, "Incorrect password")
                 return False
         except TimeoutError:
             self.send_error(client, "Login operation timed out")
             return False
         except Exception as e:
-            print(f"Exception in login for user {username}: {e}")
             self.send_error(client, str(e))
             return False
-        print("Password check passed.")  # Debug print
         client.send("success".encode('utf-8'))  # Add this line
         return True
 
     def send_error(self, client, message):
-        print(f"Sending error to client: {message}")
         client.send(json.dumps({"type": "error", "message": message}).encode('utf-8'))
+
+    def fetch_recent_messages(self):
+        self.cursor.execute("SELECT username, message_text, timestamp FROM chat_messages "
+                            "ORDER BY timestamp DESC LIMIT 100")
+        return self.cursor.fetchall()
 
 if __name__ == "__main__":
     ChatServer('172.31.25.224', 55557).start()

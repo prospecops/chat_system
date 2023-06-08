@@ -54,6 +54,7 @@ class ChatClient:
         except Exception as e:
             print(f"Exception in close: {e}")
 
+
 if __name__ == "__main__":
     import time
 
