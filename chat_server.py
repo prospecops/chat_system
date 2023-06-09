@@ -160,5 +160,6 @@ class ChatServer:
                             "ORDER BY timestamp DESC LIMIT 100")
         return self.cursor.fetchall()
 
+
 if __name__ == "__main__":
     ChatServer('172.31.25.224', 55557).start()

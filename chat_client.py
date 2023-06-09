@@ -2,6 +2,7 @@ import socket
 import json
 import threading
 
+
 class ChatClient:
     def __init__(self, username, password, host='localhost', port=55557, register=False):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
